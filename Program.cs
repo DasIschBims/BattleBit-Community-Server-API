@@ -1,3 +1,4 @@
+using System.Net;
 using BattleBitAPI;
 using BattleBitAPI.Common;
 using BattleBitAPI.Server;
@@ -9,6 +10,8 @@ class Program
     {
         var listener = new ServerListener<MyPlayer, MyGameServer>();
         listener.Start(30001);
+        listener.OnGameServerConnecting += OnGameServerConnecting;
+        listener.OnValidateGameServerToken += OnValidateGameServerToken;
 
         Console.WriteLine("API started!");
 
@@ -17,10 +20,10 @@ class Program
 
     private static async Task<bool> OnValidateGameServerToken(IPAddress ip, ushort gameport, string sentToken)
     {
-        await Console.Out.WriteLineAsync(ip + ":" + gameport + " sent " + sentToken);
-        return true;
+        await Console.Out.WriteLineAsync(ip + ":" + gameport + " sent token: " + sentToken);
+        return sentToken == "123";
     }
-
+    
     private static async Task<bool> OnGameServerConnecting(IPAddress arg)
     {
         await Console.Out.WriteLineAsync(arg.ToString() + " connecting");
@@ -33,6 +36,7 @@ public class MyPlayer : Player<MyPlayer>
     public bool IsAdmin = false;
     public int Kills;
     public int Deaths;
+    public PlayerLoadout spawnLoadout;
 }
 
 class MyGameServer : GameServer<MyPlayer>
@@ -49,8 +53,7 @@ class MyGameServer : GameServer<MyPlayer>
 
     private async Task SetupServer()
     {
-        ServerSettings.BleedingEnabled = false;
-        ServerSettings.SpectatorEnabled = false;
+        ServerSettings.PlayerCollision = true;
         MapRotation.ClearRotation();
         MapRotation.AddToRotation("Azagor");
         GamemodeRotation.ClearRotation();
@@ -61,25 +64,20 @@ class MyGameServer : GameServer<MyPlayer>
         
         if (RoundSettings.State == GameState.CountingDown)
             RoundSettings.SecondsLeft = 1;
-        
-        if (RoundSettings.State == GameState.Playing)
-            AllPlayers.ToList().ForEach((player) =>
-            {
-                player.SetRunningSpeedMultiplier(1.25f);
-                player.SetJumpMultiplier(1.5f);
-                player.SetFallDamageMultiplier(0f);
-            });
     }
 
     public override async Task OnTick()
     {
-        ServerSettings.JumpHeightMultiplier = 1.5f;
-        ServerSettings.RunningSpeedMultiplier = 1.25f;
-        ServerSettings.FallDamageMultiplier = 0f;
-        ServerSettings.CanSpectate = false;
-        ServerSettings.ReloadSpeedMultiplier = 1.25f;
-        ServerSettings.CanRespawn = false;
-        ServerSettings.HasCollision = true;
+        ServerSettings.PlayerCollision = true;
+        foreach (var player in AllPlayers)
+        {
+            player.Modifications.JumpHeightMultiplier = 1.5f;
+            player.Modifications.RunningSpeedMultiplier = 1.25f;
+            player.Modifications.FallDamageMultiplier = 0f;
+            player.Modifications.CanSpectate = false;
+            player.Modifications.ReloadSpeedMultiplier = 1.25f;
+            player.Modifications.RespawnTime = 1;
+        }
     }
 
     public override async Task OnPlayerJoiningToServer(ulong steamID, PlayerJoiningArguments args)
@@ -138,12 +136,18 @@ class MyGameServer : GameServer<MyPlayer>
         }
         else
         {
-            SayToChat("<color=red>" + args.Killer.Name + " killed " + args.Victim.Name + "!</color>");
+            SayToChat("<color=red>" + args.Killer.Name + " killed " + args.Victim.Name +"!</color>");
             args.Victim.Kill();
             args.Killer.SetHP(100);
             args.Killer.Kills++;
             args.Victim.Deaths++;
         }
+    }
+
+    public override async Task<OnPlayerSpawnArguments> OnPlayerSpawning(MyPlayer player, OnPlayerSpawnArguments request)
+    {
+        player.spawnLoadout = request.Loadout;
+        return request;
     }
 
     public override async Task<bool> OnPlayerTypedMessage(MyPlayer player, ChatChannel channel, string msg)
