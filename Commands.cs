@@ -103,3 +103,24 @@ public class StartCommand : ApiCommand
         };
     }
 }
+
+public class StopCommand : ApiCommand
+{
+    public StopCommand()
+    {
+        CommandString = "/stop";
+        HelpString = "Stops the game";
+        Aliases = new string[] { "/st" };
+        AdminOnly = true;
+    }
+    
+    public override Command ChatCommand(MyPlayer player, ChatChannel channel, string msg)
+    {
+        return new Command
+        {
+            Action = ActionType.Stop,
+            Executor = player.Name,
+            Error = false,
+        };
+    }
+}

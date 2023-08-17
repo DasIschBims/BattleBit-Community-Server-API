@@ -36,7 +36,6 @@ public class MyPlayer : Player<MyPlayer>
     public bool IsAdmin = false;
     public int Kills;
     public int Deaths;
-    public PlayerLoadout spawnLoadout;
 }
 
 class MyGameServer : GameServer<MyPlayer>
@@ -46,34 +45,41 @@ class MyGameServer : GameServer<MyPlayer>
         new HelpCommand(),
         new StatsCommand(),
         new KillCommand(),
-        new StartCommand()
+        new StartCommand(),
+        new StopCommand(),
     };
     
     private CommandHandler handler = new();
 
-    private async Task SetupServer()
+    public readonly List<Weapon> WeaponList = new()
+    {
+        Weapons.Groza,
+        Weapons.ACR,
+        Weapons.AK15,
+        Weapons.AK74,
+        Weapons.G36C,
+        Weapons.HoneyBadger,
+        Weapons.KrissVector,
+        Weapons.L86A1,
+        Weapons.M4A1,
+        Weapons.M249,
+        Weapons.MK14EBR,
+        Weapons.MK20,
+        Weapons.MP7,
+        Weapons.PP2000,
+        Weapons.SCARH,
+        Weapons.FAL,
+        Weapons.MP5,
+        Weapons.P90
+    };
+
+    public async Task SetupServer()
     {
         ServerSettings.PlayerCollision = true;
         MapRotation.ClearRotation();
         MapRotation.AddToRotation("Azagor");
         GamemodeRotation.ClearRotation();
         GamemodeRotation.AddToRotation("TDM");
-
-        if (RoundSettings.State == GameState.WaitingForPlayers)
-            ForceStartGame();
-        
-        if (RoundSettings.State == GameState.CountingDown)
-            RoundSettings.SecondsLeft = 1;
-        
-        foreach (var player in AllPlayers)
-        {
-            player.Modifications.JumpHeightMultiplier = 1.5f;
-            player.Modifications.RunningSpeedMultiplier = 1.25f;
-            player.Modifications.FallDamageMultiplier = 0f;
-            player.Modifications.CanSpectate = false;
-            player.Modifications.ReloadSpeedMultiplier = 1.25f;
-            player.Modifications.RespawnTime = 0;
-        }
     }
 
     public override async Task OnPlayerJoiningToServer(ulong steamID, PlayerJoiningArguments args)
@@ -83,11 +89,47 @@ class MyGameServer : GameServer<MyPlayer>
         stats.Progress.Rank = 200;
         stats.Progress.Prestige = 10;
 
-        if (steamID == 76561198395073327)
+        if (steamID == 76561198395073327 || steamID == 76561198196108998)
             stats.Roles = Roles.Admin;
+    }
+
+    public override async Task OnTick()
+    {
+        foreach (var player in AllPlayers)
+        {
+            player.Message("hp: " + player.HP + "<br>" + "pos: " + player.Position, fadeoutTime: 2f);
+            
+            player.Modifications.JumpHeightMultiplier = 1.25f;
+            player.Modifications.RunningSpeedMultiplier = 1.5f;
+            player.Modifications.FallDamageMultiplier = 0f;
+            player.Modifications.CanSpectate = false;
+            player.Modifications.ReloadSpeedMultiplier = 1f;
+            player.Modifications.GiveDamageMultiplier = 0.8f;
+            player.Modifications.RespawnTime = 0;
+            player.Modifications.DownTimeGiveUpTime = 0;
+            player.Modifications.MinimumDamageToStartBleeding = 100f;
+            player.Modifications.MinimumHpToStartBleeding = 0f;
+            player.Modifications.HitMarkersEnabled = false;
+        }
         
-        if (RoundSettings.State == GameState.WaitingForPlayers)
-            ForceStartGame();
+        Task.Run(() =>
+        {
+            switch (RoundSettings.State)
+            {
+                case GameState.Playing:
+                {
+                    RoundSettings.SecondsLeft = 666666;
+                    break;
+                }
+                case GameState.WaitingForPlayers:
+                {
+                    ForceStartGame();
+                    break;
+                }
+            }
+
+            Task.Delay(1000);
+        });
     }
 
     public override async Task OnConnected()
@@ -108,14 +150,32 @@ class MyGameServer : GameServer<MyPlayer>
 
         await SetupServer();
     }
-    
+
+    public override async Task OnRoundEnded()
+    {
+        Console.WriteLine("Round ended!");
+        ForceStartGame();
+    }
+
+    public override async Task<bool> OnPlayerRequestingToChangeRole(MyPlayer player, GameRole requestedRole)
+    {
+        if (requestedRole != GameRole.Assault)
+        {
+            player.Message("You can only play as Assault!", fadeoutTime: 2f);
+            return false;
+        }
+        
+        return true;
+    }
+
     public override async Task OnPlayerConnected(MyPlayer player)
     {
         SayToChat("<color=green>" + player.Name + " joined the game!</color>");
         await Console.Out.WriteLineAsync("Connected: " + player);
+        
+        player.JoinSquad(Squads.Alpha);
     }
     
-
     public override async Task OnPlayerDisconnected(MyPlayer player)
     {
         SayToChat("<color=orange>" + player.Name + " left the game!</color>");
@@ -142,8 +202,28 @@ class MyGameServer : GameServer<MyPlayer>
 
     public override async Task<OnPlayerSpawnArguments> OnPlayerSpawning(MyPlayer player, OnPlayerSpawnArguments request)
     {
-        player.spawnLoadout = request.Loadout;
+        await Task.Run(() => { UpdateWeapon(player); });
+        
+        request.Loadout.SecondaryWeapon = default;
+        request.Loadout.Throwable = default;
+        request.Loadout.FirstAid = default;
+        request.Loadout.HeavyGadget = default;
+        request.Loadout.LightGadget = default;
+        
         return request;
+    }
+
+    public void UpdateWeapon(MyPlayer player)
+    {
+        var weapon = WeaponList[new Random().Next(WeaponList.Count)];
+
+        var weaponItem = new WeaponItem()
+        {
+            Tool = weapon,
+            MainSight = Attachments.RedDot,
+        };
+        
+        player.SetPrimaryWeapon(weaponItem, 20, true);
     }
 
     public override async Task<bool> OnPlayerTypedMessage(MyPlayer player, ChatChannel channel, string msg)

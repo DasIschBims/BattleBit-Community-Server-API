@@ -12,7 +12,7 @@ public class CommandHandler
         {
             case ActionType.Help:
             {
-                player.Message("Available commands:");
+                player.Message("Available commands:", fadeoutTime: 2f);
                 var commands = MyGameServer.ApiCommands.Where(c => !c.AdminOnly || player.IsAdmin).ToList();
                 
                 StringBuilder messageBuilder = new StringBuilder();
@@ -22,7 +22,7 @@ public class CommandHandler
                 }
                 string message = messageBuilder.ToString();
                 
-                player.Message(message);
+                player.Message(message, fadeoutTime: 5f);
                 break;
             }
             case ActionType.Stats:
@@ -32,7 +32,7 @@ public class CommandHandler
                 var playerKd = playerDeaths == 0 ? playerKills : (double)playerKills / playerDeaths;
                 var formattedPlayerKd = playerKd.ToString("0.00");
                 
-                player.Message($"Kills: {playerKills}<br>Deaths: {playerDeaths}<br>K/D: {formattedPlayerKd}");
+                player.Message($"Kills: {playerKills}<br>Deaths: {playerDeaths}<br>K/D: {formattedPlayerKd}", fadeoutTime: 5f);
                 break;
             }
             case ActionType.Kill:
@@ -42,24 +42,37 @@ public class CommandHandler
                 
                 if (target == null)
                 {
-                    player.Message("Player not found!");
+                    player.Message("Player not found!", fadeoutTime: 2f);
                     break;
                 }
                 
                 targetPlayer?.Kill();
-                player.Message($"Killed {targetPlayer?.Name}");
+                player.Message($"Killed {targetPlayer?.Name}", fadeoutTime: 2f);
                 break;
             }
             case ActionType.Start:
             {
                 if (player.GameServer.RoundSettings.State != GameState.WaitingForPlayers && player.GameServer.RoundSettings.State != GameState.CountingDown)
                 {
-                    player.Message("Round already started!");
+                    player.Message("Round already started!", fadeoutTime: 2f);
                     break;
                 }
                 
-                player.Message("Starting game!");
+                player.Message("Starting game!", fadeoutTime: 2f);
                 player.GameServer.ForceStartGame();
+                player.GameServer.RoundSettings.SecondsLeft = 3;
+                break;
+            }
+            case ActionType.Stop:
+            {
+                if (player.GameServer.RoundSettings.State != GameState.EndingGame)
+                {
+                    player.Message("Round already ended!", fadeoutTime: 2f);
+                    break;
+                }
+                
+                player.Message("Ending game!", fadeoutTime: 2f);
+                player.GameServer.ForceEndGame();
                 player.GameServer.RoundSettings.SecondsLeft = 3;
                 break;
             }
