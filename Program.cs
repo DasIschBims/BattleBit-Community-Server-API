@@ -64,11 +64,7 @@ class MyGameServer : GameServer<MyPlayer>
         
         if (RoundSettings.State == GameState.CountingDown)
             RoundSettings.SecondsLeft = 1;
-    }
-
-    public override async Task OnTick()
-    {
-        ServerSettings.PlayerCollision = true;
+        
         foreach (var player in AllPlayers)
         {
             player.Modifications.JumpHeightMultiplier = 1.5f;
@@ -76,7 +72,7 @@ class MyGameServer : GameServer<MyPlayer>
             player.Modifications.FallDamageMultiplier = 0f;
             player.Modifications.CanSpectate = false;
             player.Modifications.ReloadSpeedMultiplier = 1.25f;
-            player.Modifications.RespawnTime = 1;
+            player.Modifications.RespawnTime = 0;
         }
     }
 
