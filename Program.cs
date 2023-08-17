@@ -97,20 +97,21 @@ class MyGameServer : GameServer<MyPlayer>
     {
         foreach (var player in AllPlayers)
         {
-            player.Message("hp: " + player.HP + "<br>"
+            /* player.Message("hp: " + player.HP + "<br>"
                            + "pos: " + player.Position + "<br>"
                            + "isdead: " + player.IsDead + "<br>"
                            + "crouching: " + player.StandingState + "<br>"
                            + "lean: " + player.LeaningState + "<br>"
                            + "bleeding: " + player.IsBleeding + "<br>"
                            );
+             */
             
             player.Modifications.JumpHeightMultiplier = 1.25f;
             player.Modifications.RunningSpeedMultiplier = 1.5f;
             player.Modifications.FallDamageMultiplier = 0f;
             player.Modifications.CanSpectate = false;
-            player.Modifications.ReloadSpeedMultiplier = 1f;
-            player.Modifications.GiveDamageMultiplier = 5f;
+            player.Modifications.ReloadSpeedMultiplier = 1.5f;
+            player.Modifications.GiveDamageMultiplier = 1f;
             player.Modifications.RespawnTime = 0;
             player.Modifications.DownTimeGiveUpTime = 0;
             player.Modifications.MinimumDamageToStartBleeding = 100f;
